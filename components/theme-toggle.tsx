@@ -1,0 +1,31 @@
+"use client"
+
+import * as React from "react"
+import { MoonIcon, SunIcon } from "lucide-react"
+import { useTheme } from "next-themes"
+
+import { Button } from "@/components/ui/button"
+
+export function ThemeToggle() {
+  const { setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => setMounted(true), [])
+
+  const toggle = () => setTheme(resolvedTheme === "dark" ? "light" : "dark")
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggle}
+      aria-label="Toggle theme"
+    >
+      {mounted && resolvedTheme === "dark" ? (
+        <SunIcon />
+      ) : (
+        <MoonIcon />
+      )}
+    </Button>
+  )
+}

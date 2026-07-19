@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PatientStatus {
+  active
+  finished
+  archived
+}
+
+enum SessionStatus {
+  scheduled
+  completed
+  cancelled
+  missed
+}
+
+enum Mood {
+  positive
+  neutral
+  anxious
+  low
+  distressed
+}
+
+enum RiskLevel {
+  low
+  moderate
+  high
+}
+
+enum ReminderPriority {
+  high
+  medium
+  low
+}
+
+enum ReminderLeadTime {
+  oneHour
+  oneDay
+  none
+}
+
+enum DocumentCategory {
+  Intake
+  Assessment
+  Consent
+  Report
+  Other
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  title               String?
+  license             String?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  patients     Patient[]
+  sessions     Session[]
+  appointments Appointment[]
+  documents    PatientDocument[]
+  notes        QuickNote[]
+  reminders    Reminder[]
+}
+
+model Patient {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  age           Int
+  email         String?
+  phone         String?
+  status        PatientStatus @default(active)
+  reason        String
+  treatmentGoal String        @db.Text
+  totalSessions Int           @default(0)
+  progress      Int           @default(0)
+  tags          String[]      @default([])
+  alerts        String[]      @default([])
+  startedAt     DateTime      @db.Date
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sessions     Session[]
+  appointments Appointment[]
+  documents    PatientDocument[]
+  notes        QuickNote[]
+  reminders    Reminder[]
+  homework     HomeworkItem[]
+
+  @@index([userId, status])
+}
+
+model HomeworkItem {
+  id        String   @id @default(cuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  task      String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model Session {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patientId     String
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  number        Int
+  date          DateTime
+  status        SessionStatus @default(scheduled)
+  duration      Int           @default(50)
+  mood          Mood?
+  reason        String
+  objectives    String[]      @default([])
+  topics        String[]      @default([])
+  interventions String[]      @default([])
+  techniques    String[]      @default([])
+  homework      String[]      @default([])
+  achievements  String[]      @default([])
+  observations  String        @db.Text
+  nextReminder  String?       @db.Text
+  risk          RiskLevel     @default(low)
+  followUp      String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  reminders Reminder[]
+
+  @@unique([patientId, number])
+  @@index([userId, date])
+}
+
+model Appointment {
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patientId        String
+  patient          Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  startAt          DateTime
+  endAt            DateTime
+  location         String
+  status           SessionStatus    @default(scheduled)
+  notes            String?          @db.Text
+  reminderLeadTime ReminderLeadTime @default(oneHour)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([userId, startAt])
+  @@index([patientId])
+}
+
+model PatientDocument {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patientId  String
+  patient    Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name       String
+  category   DocumentCategory @default(Other)
+  sizeBytes  Int?
+  uploadedAt DateTime         @default(now())
+
+  @@index([patientId])
+}
+
+model QuickNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model Reminder {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   Session?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  text      String
+  due       DateTime         @db.Date
+  priority  ReminderPriority @default(medium)
+  done      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, due])
+  @@index([patientId])
+}
